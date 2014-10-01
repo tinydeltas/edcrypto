@@ -1,0 +1,52 @@
+Class Structure
+
+Abstract Classes 
+
+Group -> cryptographic group, consisting of Elements
+    - methods: point(), secret()
+
+Examples
+    - Curve built into python libraries
+    - EdwardsCurve(p, d, a, r, gx, gy)
+    - Schnorr
+
+# Secret -> scalar used for encryption 
+    - methods: zero, one, add, sub, neg, mul, div, inv, equal, set, random_secret
+
+Examples
+    - ModInt (prime, value)
+    - ?? Other libraries 
+
+====================================================
+# Element -> member of the Group 
+    -methods: generator, identity, order, neg, equal, add, sub, double, mul
+    -encode, decode, random_element
+
+Examples
+    - EdwardsPoint (group, x, y)
+        + extEdwardsPoint (group, x, y, z, t)
+        + projEdwardsPoint (group, x, y, z)
+        + invEdwardsPoint (group, x, y, z)
+        + montEdwardsPoint (group, x)
+
+
+File Structure 
+    * conv -> conversions between coordinate systems (helps reduce complex importing)
+    * curve -> (not completed) simplified wrapper around an existing, well-used python library or module
+    * curve25519 -> generates Montgomery curve w/ curve25519 parameters
+    * ecc (deprecated, need to be updated) -> Weierstrauss curves 
+    * ed25519 -> generates twisted Edwards curve version of curve25519 
+    * eddsa (need to be ported) -> given 
+    * edwards -> definitions and operations of edwards curves, points 
+    * elgamal -> encryption scheme w/ public/private keys 
+    * extended -> alternate coordinate system 
+    * group -> abstract class definitions for group, secret, point 
+    * inv -> alternate coordinate system 
+    * modular -> modular integer class w/ operations 
+    * mont -> alternate coordinate system 
+    * proj -> alternate coordinate system 
+    * testcurves -> misc. curves 
+    * tests -> unit tests 
+    * utils -> more conversions (should put together?)
+    * xz -> alternate coordinate system 
+        

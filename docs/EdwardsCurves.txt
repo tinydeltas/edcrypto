@@ -1,0 +1,113 @@
+Implementation of abstract group interface for twisted Edwards curves,
+including addition (and doubling) in three equivalent coordinate systems,
+optimized for speed and simplicity.
+
+Twisted Edwards curves (TEC's) are elliptic curves of the form
+ax^2 + y^2 = c*(1 + dx^2y^2)
+for some scalars c, d over some field K.
+Here, we will take K to be a (finite) prime field for some large p.
+
+An Edwards curve is a TEC w/ a = 1 .
+The primary advantage of Edwards curves is that
+their addition law is strongly unified
+when d is not a square in K.
+Also, whereas the rational points of curves in Weierstrauss form
+need to include not only the set of (x, y) pairs that fit the equation,
+but also a point at infinity,
+Edwards curves do not need a point at infinity.
+
+Each twisted Edwards curve is a twist of an Edwards curve, that is,
+the set of elliptic curves isomorphic over an algebraic closure of K.
+The primary advantage of TEC's is that
+1) They retain the strong unification property of the addition law, with
+suitable algorithms even when d is a square in K.
+2) They include more curves birationally equivalent to the Weierstrauss form.
+3) They are birationally equivalent to the set of Montgomery curves,
+which provide arithmetic operations at a low computational cost.
+
+The Twisted Edwards Curves class includes function support for addition in two
+coordinates, inverted/projected/extended addition and doubling, and scalar
+multiplication. It also includes functions for encoding and decoding a
+30-character message, and signing/verification of a message using
+standard ECDSA procedures.
+
+Coordinate Systems
+We have also implemented Projective Edwards coordinates and Inverted Edwards
+coordinates, as their addition algorithms do not require inversions and
+yet remain strongly unified (with some exceptions).
+
+Montgomery Curves
+Based on the birationally equivalent property above, we can also define maps
+from twisted Edwards curves to Montgomery curves (and vice versa).
+
+Conversions Between Curve Points
+E = Standard Edwards (x, y)
+tE = Twisted Edwards (x, y)
+Ex = Extended Edwards (X, Y, T, Z)
+P = Projective Edwards (X, Y, Z)
+I = Inverted Edwards (X, Y, Z)
+S = Square-d(YZ) (Y, Z)
+M = Montgomery (u, v)
+
+Change of coordinates/points maps:
+tE(x, y) --> E(x, y): (x/sqrt(a), y)
+E(x, y) --> tE(x, y): (x, y/sqrt(a))
+
+E, tE, P, I -->S (Y, Z): r*y = Y/Z
+
+E(x, y) -->Ex(X, Y, Z, T) = (x, y, xy, 1)
+Ex(X, Y, Z, T)->E(x, y) -> (X/Z, Y/Z)
+
+E(x, y) --> I(X, Y, Z): (y, x, xy)
+I(X, Y, Z) --> E(x, y): (Z/X, Z/Y)
+
+E(x, y) --> P(X, Y, Z): (x, y, 1)
+P(X, Y, Z) --> E(x, y): (X/Z, Y/Z)
+
+P(X, Y, Z) --> I(X, Y, Z): (YZ, XZ, XY)
+I(X, Y, Z) --> P(X, Y, Z): ???
+
+tE(x, y) --> M(u, v): ((1+y)/(1-y), (1+y)/(1-y) * x)
+M(u, v) --> tE(x, y): (u/v, (u-1)(u+1))
+
+Conversions Between Curve Equation Parameters
+E = Edwards: x^2 + y^2 = (c^2) (1 + dx^2y^2) assuming c = 1
+tE = (twisted) Edwards: (a)x^2 + y^2 = (c^2) (1 + dx^2y^2) assuming c = 1
+P = Projective: z^2 (x^2 + y^2)  = z^4 + dx^2y^2.
+I = Inverted: z^2 (x^2 + y^2) = x^2y^2 + d*z^4
+S = Square: parameters change
+M = Montgomery: Bv^2 = u^3 + Au^2 + u
+W = Weierstrauss: y^2 = x^3 + ax + b
+
+Change of parameters maps:
+tE(a, d) --> E(a, d): (a, d/a)
+E(a, d) --> tE(a, d): (a^2, d)
+
+E, tE, P, I(a, d) --> S(c, d): (1, r^2)
+
+P(a, d) --> Ex(a, d) = (-1, -d/a) for a = -1
+E(a, d) --> P(a, d),
+
+E(a, d) --> I(a, d),
+I(a, d) --> E(a, d),
+E(a, d) --> P(a, d),
+P(a, d) --> E(a, d),
+P(a, d) --> I(a, d),
+I(a, d) --> P(a, d): (a, d)
+
+tE(a, d) --> M(A, B): (2(a + d)/(a - d), 4/(a - d))
+M(A, B) --> tE(a, d): ((A + 2)/B, (A - 2)/B)
+
+Curve25519:
+a special edwards curve of the form
+ax^2 + y^2 = 1 + dx^2y^2, where
+a = -1, d = -121665/121666
+
+Sources
+Arithmetic operation algorithms: http://eprint.iacr.org/2008/013.pdf
+and http://hyperelliptic.org/EFD/g1p/auto-edwards.html.
+Inverted coordinateS: http://cr.yp.to/newelliptic/inverted-20071009.pdf
+EdDSA algorithm: http://ed25519.cr.yp.to/ed25519-20110926.pdf
+
+See another concise Python implementation of edDSA here:
+http://ed25519.cr.yp.to/python/ed25519.py

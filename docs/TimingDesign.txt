@@ -1,0 +1,261 @@
+
+> Terminology
+
+Finite field arithmetic
+  F_p : Finite field with size p
+    M : (field) integer multiplication
+    S : (field) integer squaring
+  add : (field) integer addition (or subtraction)
+  x*_ : special integer multiplication of field element _ x times
+   yD : y multiplications of all special field elements (e.g. a, d, etc)
+    I : (field) inverse
+totals: Easily calculated from three operand version of each algorithm
+
+> Trials and Data
+
+(benchmarking code located under tests.py under timing function)
+
+Trial #1 (8/13/2014): initial port, minimal code structure optimization
+    Processor: 1.7 GHz Intel Core i7 
+    Memory: 8GB 1600 MHz DDR3 
+    number of trials = 1000
+
+    for encoding/decoding: random message of 1 char in length 
+    for (eddsa) signing/verification: random message of 1 character in length 
+    for exchange: exchange of one public/private Diffie-Hellman key pair (calculation of shared secret)
+
+    0: Simple twisted edwards
+
+        Operation                   | Time taken
+        ====================================================
+        Point addition              | 0.0002304222583770752
+        Point doubling              | 0.0002287306785583496
+        Point multiplication        | 0.08717476892471314
+        Encoding                    | 0.0010314762592315673
+        Decoding                    | 0.000007611274719238281
+        Signing                     | 0.09090792226791382
+        Verification                | 0.18170159816741943 
+        Exchange                    | 0.09182436203956604
+
+    1.a: Projective
+
+        Operation                   | Time taken
+        ====================================================
+        Point addition              | 0.00002546501159667969
+        Point doubling              | 0.00001876974105834961
+        Point multiplication        | 0.007892332077026366
+        Encoding                    | 0.0010377514362335206
+        Decoding                    | 0.000017739534378051758
+        Signing                     | 0.011747660398483276
+        Verification                | 0.019502914905548095 
+        Exchange                    | 0.008057398796081543
+
+    1.b: Inverted
+
+        Operation                   | Time taken
+        ====================================================
+        Point addition              | 0.00003457856178283691
+        Point doubling              | 0.00002630186080932617
+        Point multiplication        | 0.010916640281677246
+        Encoding                    | 0.000984816074371338
+        Decoding                    | 0.00014742493629455567
+        Signing                     | 0.014742313623428345
+        Verification                | 0.025170852661132812 
+        Exchange                    | 0.01053526496887207
+
+    1.c: Extended
+
+        Operation                   | Time taken
+        =====================================================
+        Point addition              | 0.00002225351333618164
+        Point doubling              | 0.000019742488861083984
+        Point multiplication        | 0.007753129005432129
+        Encoding                    | 0.001006995439529419
+        Decoding                    | 0.000022258520126342772
+        Signing                     | 0.01210109305381775
+        Verification                | 0.019722872495651245 
+        Exchange                    | 0.007721862316131592
+
+    1.d: Montgomery (xz coordinates)
+        * implementation not complete
+
+    2. Python wrapper
+        * implementation not complete 
+
+    Analysis 
+        - Projective and extended coordinate sytems are about 10x faster in addition, doubling, multiplication, signing, and verification.
+        - Inverted coordinate system is about 8x faster; it has a complex conversion function which can be simplified by checking if the point to be converted is a special point first. 
+        - Encoding/decoding is significantly faster in standard Edwards coordinates because no conversions need to be made before the message is encoded and before it is decoded. 
+
+> Levels of Optimization for Curve25519/Ed25519
+
+0: simple Twisted Edwards curve
+    Although addition laws are unified, they require two inversions.
+
+    Addition: 2I + 10M + 2*d + 1*a + 4add
+    Doubling: Same.
+
+    Conversion costs:
+        - to regular from Twisted: 1I
+        - to twisted from regular: 1I
+        - to Projective: none
+        - to Inverted: 1M
+        - to Extended: 1M
+        - to Montgomery: 4M + 2I
+
+1: Different curve representation
+All operations are preceded by the name of the algorithm in the Explicit
+Formulas Database.
+
+1.a: Projective
+    Computational costs depend on if z1 or z2 = 1, which occurs when affine point
+    in twisted Edwards coordinates has just been converted to projective coor's.
+    All addition algorithms are strongly unified.
+
+    ("add-2008-bbjlp")
+    Addition, regular: 10M + 1S + 1*a + 1*d + 7add.
+        - ("madd-2008-bbjlp") if z2 = 1: -1M
+        - ("mmadd-2008-bbjlp") if z2 = 1 and z1 = 1: -4M, + 1add
+
+    ("dbl-2008-bbjlp")
+    Doubling, regular: 3M + 4S + 1*a + 6add + 1*2
+        - ("mdbl-2008-bbjlp") if z1 = 1:  2M + 4S + 1*a + 7add + 1*2
+
+    Clearing denominator costs:
+
+    Conversion costs:
+        - to Edwards: 2I
+        - to Extended: 2M + 1S
+        - to Inverted: 3M
+
+    Benchmarking prep:
+        - Detection of z = 1, especially when point has just been converted
+        - (yet to be implemented) Clearing the denominator, allowing converting
+        to Edwards and Extended coordinates to be operation-less, and saving
+        2M in converting to inverted coordinates
+
+1.b: Inverted
+    Computational costs depend on if z1 or z2 = 1, which occurs when ???
+    Addition is unified, although special points (points at infinity) have to be
+    dealt with separately (see inv.py file)
+
+    ("add-2008-bbjlp")
+    Addition, regular: 9M + 1S + 1*a + 1*d + 7add
+        - (madd-2008-bbjlp") if z2 = 1: -1M
+        - ("mmadd-2008-bbjlp") if z2 = 1 and z1 = 1: -1M -1S -1*d
+
+    ("dbl-2008-bbjlp")
+    Doubling, regular: 3M + 4S + 1*a + 1*d2 + 6add, d2 = 2*d
+        - ("mdbl-2008-bbjlp") if z1 = 1: -1s, -1*d2
+
+    Note: not much improvement over standard Edwards coordinates w/ this algorithm.
+    *Tripling cost:
+        - 9M + 4S + 1D + 10add
+        - 7M + 7S + 1D + 17a
+
+    *Clearing denominator cost:
+        - 9M + 1S + 3D + 7add
+        - 3M + 4S + 3D + 5add
+
+    Conversion costs:
+        - to Edwards: none if special point, 2 field inversions otherwise
+
+    Benchmarking prep:
+        - Detection of z = 1
+        - Clearing denominators before converting back into Edwards point
+        - Use triplings for scalar multiplication since it's faster than
+        doubling + addition
+
+1.c: Extended (when a = -1)
+    Extremely fast when a = -1, as is the case with ed25519.
+    Testing if an element is on the curve requires less computation.
+
+    ("add-2008-hwcd")
+    Addition, regular:  9M + 1*a + 1*d + 7add
+        - ("madd-2008-hwcd") if z2 = 1: -1M, 1*d
+        - ("mmadd-2008-hwcd") if z2 = 1 and z1 = 1: -2M, +1add, +1S
+
+    ("add-2008-hwcd-4")
+    Alternative addition algorithm #1 (add_a): 8M + 8add + 2*2  Not unified.
+        - ("madd-2008-hwcd-4") if z2 = 1: -1M
+        - ("madd-2008-hwcd-3") if z2 = 1 and z1 = 1: -2M, +1*k, -1*2, k = 2*d
+        - ("mmadd-2008-hwcd-4") also if z2 = 1 and z1 = 1: -2M
+
+    ("add-2008-hwcd-2")
+    Alternative addition algorithm #2 (add_d): 9M + 1*a + 7add. Not unified.
+        - ("mmadd-2008-hwcd-2") if z2 = 1 and z1 = 1: -2M
+
+    ("add-2008-hwcd-3")
+    Because a = -1: 8M + 1*k + 8add + 1*2 (add_fast). Strongly unified.
+        - ("mmadd-2008-hwcd-3") if z2 = 1 and z1 = 1: -2M, +1S, +1add
+
+    ("dbl-2008-hwcd")
+    Doubling, regular:  4M + 4S + 1*a + 6add + 1*2.
+        - ("add-2008-hwcd") if z1 = 1: -1M, +1add
+
+    Conversion costs:
+        - to Edwards: 2 field inversions
+        - to projective: none
+
+    Benchmarking prep:
+        - Detection of z = 1
+        - Clearing denominators before converting back into Edwards point
+        - Use triplings for scalar multiplication since it's faster than
+        doubling + addition
+
+1.d: Montgomery xz coordinates (regular operations included for completeness)
+    Not strongly unified.
+
+    Addition (not xz): 3M + 3I + 13add + 2S + 3*^3 + 1*2
+
+    Addition, regular: None
+
+    Doubling (not xz): 19M + 3I + 14add + 5s + 2*^3 + 3*3 + 7*2
+
+    Doubling, regular ("dbl-1987-m-3"): 2M + 2S + 1*a24 + 4add
+    If z1 = 1 ("mdbl-1987-m"):  1M + 2S + 1*a + 3add + 1*4
+
+    Conversion costs:
+        - to regular from Edwards: 4add + 2I
+        - to xz from regular: none
+        - to Edwards from xz: 1I
+        - to Edwards from regular: 2add + 2I
+        - to Weierstrauss from regular:
+
+    Benchmarking prep:
+        - Difficult to see where this would be useful.
+        - clearing denominators for xz form would help with converting to
+        Edwards point and doubling
+        - xz coordinate system could be changed into yz for eddsa purposes
+        - Differential addition??
+
+2: C-optimized code with Python wrapping
+    Using the pysodium python package.
+
+> Test Design
+
+    n (upper bound on number of trials) = 1 million?
+
+    Finite field arithmetic:
+        - CPU cost for field multiplication, addition, inversion,
+        exponentiation, and square roots
+
+    Curve arithmetic:
+        - Time/number of cycles taken vs. number of operations in each
+        coordinate system (for (1, n) operations)
+        - number of cycles taken p/ operation in each coordinate system
+        (n number of trials)
+
+    EdDSA signing and verification:
+        - separate signing vs number of messages
+        - X messages verified p/second vs. length of messages
+        - X total verification time (p/ level of optimization) vs. number of messages
+
+> Notes
+    Computational costs depend on:
+        - CPU
+        - possible parallelization
+
+Sources
+    http://cr.yp.to/ecdh/curve25519-20060209.pdf
+
