@@ -13,7 +13,7 @@ setup(
     long_description=open('README.txt').read(),
     install_requires=[
         "pycrypto == 2.6.1",
-        "ecdsa == 0.11",
+        "ecdsa == 0.13.3",
         "ed25519 == 1.2",
     ],
 )
